@@ -3,7 +3,7 @@ The Cambridge Web Authentication System: WAA->WLS communication protocol
 
 Jon Warbrick
 University of Cambridge Computing Service
-Jan 2004 - V1.5
+Oct 2004 - V1.6
 
 Terminology
 -----------
@@ -17,7 +17,7 @@ This document uses various terms as defined in [webiso-model]. In
 particular:
 
   Web browser: the end-user client through which users interact with
-    web-based applications and with the weblogin service. This may
+    web-based applications and with the web login service. This may
     include web (i.e., HTTP/HTML) user agents that are not classic
     browsers (e.g. limited browsers on PDAs, automated agents such as
     wget, WebDAV agents, etc,) providing they support necessary
@@ -25,12 +25,12 @@ particular:
 
   Web application agent (WAA): the component of the system that
     integrates authentication service into a web-based application. It
-    generates requests to the weblogin service, interprets
-    authentication responses from the weblogin service, and provides
+    generates requests to the web login service, interprets
+    authentication responses from the web login service, and provides
     user identity information to the web-based application. It may be
     implemented as a code library to be linked into application code;
     or as an extension to a web-application environment such as a web
-    server (e.g. Apache); or in various other ways.
+    server (e.g. Apache); or in any other way.
 
   Web login service (WLS): the component responsible for handling
     authentication requests, interacting with users to gather
@@ -46,7 +46,7 @@ https URLs as specified in [RFC 2396]. These URLs include a query
 component composed of parameter name and value pairs encoded as for
 the "application/x-www-form-urlencoded" content type defined in
 [HTML4.01] section 17.13, except that the order of the parameters is
-not significant. Common variations of this encoding form, including
+not significant. Common variations of this encoding, including
 encoding 'space' as '%20' rather then '+' and using ';' rather than
 '&' to separate name/value fields SHOULD be recognised. Pairs
 designated 'OPTIONAL' may be omitted; doing so is equivalent to
@@ -55,10 +55,11 @@ including the parameter with an empty string value.
 Message transmission is initiated in response to an HTTP request from
 a browser. The transmitter responds to the browser with an HTTP
 redirect and specifies the message URL in the 'Location:' header of
-the response.
+the response. In this way, messages are passed between the WLS and the
+WAA via the user's browser.
 
 HTTP/1.0 [RFC 1945] and HTTP/1.1 [RFC 2616] differ in their support
-for redirection and most browsers disregard some aspects of the RFCs
+for redirection and most browsers disregard aspects of the RFCs
 anyway. In addition, the RFCs require that user agents should not
 perform some redirects unless it can be confirmed by the user. While
 many browsers disregard this requirement, users may be confused by
@@ -71,8 +72,8 @@ is supported by some HTTP1.0 agents. However in the latter case the
 component MUST ensure that the body of the redirect response contains
 a short hypertext note with a hyperlink to the redirection URL.
 
-The status-code recommendations above should cause all messages to
-arrive encapsulated in GET requests. However the recipient of a
+The HTTP status-code recommendations above should cause all messages
+to arrive encapsulated in GET requests. However the recipient of a
 message MAY accept other methods, but if so MUST use the parameters
 found in the URL and MUST disregard any in the body of the request.
 
@@ -160,19 +161,21 @@ service and the following parameters:
            this request. This could be used to carry the identity of
            the resource originally requested or other WAA state, or to
            associate authentication requests with their eventual
-           replies. Note that nothing is done to ensure the integrity
-           or confidentiality of this data and that the WAA MUST take
+           replies. When returned, this data will be protected by the
+           digital signature applied to the authentication response
+           message but nothing else is done to ensure the integrity or
+           confidentiality of this data - the WAA MUST take
            responsibility for this if necessary.
 
   date     [OPTIONAL] The current date and time according to the
-           WAA. See skew. 
+           WAA. This parameter was used in conjunction with the now
+           deprecated 'skew' parameter but is retained because it can
+           provide valuable debugging information when investigating
+           problems cause by skew between the clocks used by the WAA
+           and the WLS.
 
-  skew     [OPTIONAL] The maximum clock skew (i.e. time difference) that
-           the WAA is willing to accept when interpreting timestamps
-           in WLS response. The WLS SHOULD use this information, along
-           with 'date' above, to detect a clock mismatch which
-           would otherwise result in authentication failures and to
-           return an informative error message.
+  skew     [DEPRECATED. This parameter SHOULD not be included in
+           authentication requests and SHOULD be ignored if present]
 
   fail     [OPTIONAL] A text token. If this parameter is 'yes' and the
            outcome of the request is anything other than success
@@ -180,7 +183,7 @@ service and the following parameters:
            then the WLS MUST return an informative error to the user
            and MUST not redirect back to the WAA. Setting this makes
            it easier to implement WAAs at the expense of a loss of
-           flexability in error handling.
+           flexibility in error handling.
 
 Parameters other than those defined above MUST not appear in a request,
 and the parameters above MUST appear no more than once.
@@ -211,26 +214,19 @@ Authentication response
 However it is achieved, the result of the authentication process will
 be that the WLS establishes the identity of the use expressed as a
 unique userid, or that the attempt is cancelled, or that an error
-occurs. The WLS sends an authentication response message, formed from
-the scheme, host and path components from the 'url' parameter supplied
-in the request and a single name/value pair in the query
-component. The name component is 'WLS-Response'. The value is formed
-by concatenating the values of the response parameters below, in the
-order shown, using '!' as a separator character. If the characters '!'
-or '%' appear in any value they MUST be replaced by their %-encoded
-representation before concatenation. Characters other than '!' and '%'
-MUST NOT be encoded. Omitted parameters MUST be encoded as the empty
+occurs. The WLS sends an authentication response message as follows.
+
+First a 'encoded response string' is formed by concatenating the
+values of the response fields below, in the order shown, using '!' as
+a separator character. If the characters '!'  or '%' appear in any
+field value they MUST be replaced by their %-encoded representation
+before concatenation. Characters other than '!' and '%' MUST NOT be
+encoded at this stage. Omitted parameters MUST be encoded as the empty
 string.
 
-Note that there can be no guarantee that an authentication response
-will ever be forthcoming since the user may abandon the authentication
-process either by quitting the browser or by manually entering a new
-url, or a fatal processing error may occur within the WLS. The WAA
-SHOULD NOT rely on receiving a response to every request.
+The response fields and their associated values are:
 
-The response parameters and their associated values are:
-
-  Parameter Value
+  Field     Value
   --------- ---------------------------------------------------------------
 
   ver       [REQUIRED] The version of the WLS protocol in use. This document
@@ -263,16 +259,16 @@ The response parameters and their associated values are:
             This indicates which authentication type was used. This
             value consists of a single text token as described below.
 
-  sso       [REQUIRED if authentication was established based on previous
-            successful authentication interaction(s) with the user,
-            otherwise required to be empty] This indicates which
-            authentication types were used on those occasions. This
+  sso       [REQUIRED if 'auth' is empty] Authentication must have been
+            established based on previous successful authentication
+            interaction(s) with the user.  This indicates which
+            authentication types were used on these occasions. This
             value consists of a sequence of text tokens as described
             below, separated by ','.
 	   
   life      [OPTIONAL] If the user has established an authenticated
             'session' with the WLS, this indicates the remaining life
-            (in seconds) of that session. If present, A WAA SHOULD use
+            (in seconds) of that session. If present, a WAA SHOULD use
             this to establish an upper limit to the lifetime of any
             session that it establishes.
 
@@ -294,35 +290,60 @@ The response parameters and their associated values are:
             base64 scheme [RFC 1521] except that the characters '+',
             '/', and '=' are replaced by '-', '.' and '_' to reduce
             the URL-encoding overhead.
+ 
+An authentication response message is then formed from the scheme,
+host and path components from the 'url' parameter supplied in the
+request and a single parameter name and value pair in the query
+component.
+
+  Parameter    Value
+  ------------ ------------------------------------------------------------
+  WLS-Response An encoded response string.
+
+As with all requests and responses, characters in the encoded response
+string must themselves be escaped as necessary to comply with
+"application/x-www-form-urlencoded" content type.
+
+There can be no guarantee that an authentication response will ever be
+forthcoming following a request, since the user may abandon the
+authentication process either by quitting the browser or by manually
+entering a new url, or a fatal processing error may occur within the
+WLS. The WAA MUST NOT rely on receiving a response to every request.
 
 Validating the authentication response
 --------------------------------------
 
 The WAA MUST validate any authentication responses that it receives. The
-validation checks that it SHOULD complete include:
+following validation checks MUST be completed:
 
-  1) Checking that the signature matches the data supplied. To
-     complete this, the WAA must have access to the public key
-     identified by 'kid' which will be distributed by the login server
-     management in a suitably secure manner. This will detect attempts
-     to forge or tamper with authentication responses. The WAA MUST
-     also check that 'kid' corresponds to a key currently being used by
-     the WAA. The login server management must make available lists of
-     the keys currently in use in a suitably secure manner.
+  1) Checking that an acceptable combination of parameters are present
+     in the response. 
 
-  2) Checking that the response is recent by comparing 'issue' with
-     the current time. If both the WLS and the WAA have clocks
-     synchronised by NTP or similar mechanism then a timeout of 30-60
-     seconds is probably appropriate, otherwise a timeout of perhaps +/-10
-     minutes may be necessary to allow for clock skew. This will
-     detect attempts to reply authentication responses. Machines
-     running WAAs SHOULD have their clocks synchronised by NTP.
+  2) Checking that 'kid', if present, corresponds to a key currently
+     being used by the WAA. The login server management will need to
+     make the keys currently in use available in a suitably secure
+     manner.
 
-  3) Checking that 'url' represents the resource currently being
-     accessed. This prevents responses issued form one WAA being used
-     to authenticate to a different WAA.
+  3) Checking that the signature, if provided, matches the data
+     supplied. To check this, the WAA will need access to the public
+     key identified by 'kid'.
 
-  4) Checking that 'auth' and/or 'sso' contain values acceptable to
+  4) Checking that the response is recent by comparing 'issue' with
+     the current time. The WLS MUST and the WAA SHOULD have their
+     clocks synchronised by NTP or a similar mechanism. Providing the
+     WAA has access to an NTP-synchronised clock then allowing for a
+     transmission time of 30-60 seconds is probably
+     appropriate. Otherwise allowance must be made for the maximum
+     expected clock skew.
+
+  5) Checking that 'url' represents the resource currently being
+     accessed. Note that in many environments a WAA will not be able
+     to securely establish their own hostname and care must be taken
+     not to end up relying on the value of the 'Host:' header from
+     the HTTP response. It may be necessary to provide axillary
+     configuration information to enable a WAA to derive urls safely.
+
+  6) Checking that 'auth' and/or 'sso' contain values acceptable to
      the WAA. Simply setting 'aauth' and 'iact' values in an
      authentication request is not sufficient since an attacker could
      construct its own request. Conversely, the WAA MUST ensure that
@@ -335,6 +356,11 @@ than one authentication response with the same values of 'issue' and
 'id'. However it is not clear what it should do if this happens. This
 could indicate a replay attack, but could equally be caused by use of
 the the back and forward buttons in a user's browser.
+
+In the event of a validation failure the WAA SHOULD report this to the
+user and SHOULD record this in a log file. It MUST NOT automatically
+retry authentication since it is likely that subsequent attempts will
+also fail and this may lead to a redirection loop.1
 
 Subsequent processing
 ---------------------
@@ -355,6 +381,10 @@ authenticated state once it is no-longer required. The web application
 MAY use the LIFE response parameter to provide an upper limit to the
 lifetime of this authentication state.
 
+The WAA MUST take care not to trap the browser in a redirect loop if
+local storage of the user's identity fail, perhaps because the browser
+has been set to rejects all cookies.
+
 However this local caching of the user's identity is achieved, the WAA
 SHOULD eventually respond to the browser with an HTTP. The contents of
 the location header of the response is outside the scope of this
@@ -374,10 +404,6 @@ The currently recognised tokens are:
 
   pwd       An authentication using username and password
 
-  card      An authentication using the cryptographic key on a University
-            Smart Card [experimental and not supported for production
-            use]
-
 Tokens starting 'x-' are reserved for experimental use by prior agreement.  
 
 Status codes
@@ -390,21 +416,53 @@ The currently defined response status codes are:
 
   200       Successful authentication.
 
+              The user successfully identified him/her self and their
+              identity is present in the response. All responses with
+              status code 200 are signed.
+
   410       The user cancelled the authentication request
+
+              The user actively abandoned the authentication process by
+              selecting a cancel button or similar process. Note that
+              users can equally abandoned the authentication process
+              by directing their browser elsewhere after an
+              authentication request. In this case no response will
+              be forthcoming.
 
   510       No mutually acceptable authentication types available
 
+              The WLS does not support any of the authentication types
+              specified in the 'aauth' parameter of the authentication
+              request.
+
   520       Unsupported protocol version
+
+              The WLS does not support the version of the protocol
+              used in the authentication response. This status code
+              will only ever be sent in a response with the 'ver'
+              field' set to 1.
 
   530       General request parameter error
 
+              There was a problem decoding the request parameters that
+              is not covered by a more specific status - perhaps an
+              unrecognised parameter.
+
   540       Interaction would be required
 
-  550       Clock skew too large
+              The request specified 'iact' as 'no' but either the user
+              is not currently identified to the WLS or  the user has
+              asked to be notified before responses that identify
+              him/her are issued. 
 
   560       WAA not authorised
 
+              The WAA is not authorised to use this WLS.
+
   570       Authentication declined
+
+              The WLS declines to provide authentication services on
+              this occasion.
 
 References
 ----------
