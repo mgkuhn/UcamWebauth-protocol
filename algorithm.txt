@@ -3,7 +3,7 @@ Pseudo-code Application Agent
 
 Jon Warbrick
 University of Cambridge Computing Service
-Jun 2004 - V1.3
+Jun 2004 - V1.4
 
 This is a pseudo-code example of how an Application Agent might be
 implemented. This block of code should be applied to every HTTP
@@ -61,8 +61,7 @@ REPLY = get_authreply_from_url()
 
 IF exists(STATE) THEN
 
-    IF NOT valid(STATE) THEN
-        tell_user "Invalid, corrupt or forged state"
+    IF NOT valid(STATE) THEN        tell_user "Invalid, corrupt or forged state"
         delete STATE
         return SYSTEM_ERROR
         
@@ -169,13 +168,13 @@ IF exists(REPLY) THEN
 
     # Check if the reply issue time is believable
 
-    IF REPLY.issue > now()+CONFIG.max_clock_skew THEN
+    IF REPLY.issue > now()+CONFIG.max_clock_skew+1 THEN
         STATE.message = "ERROR: reply issued in the future?"
         STATE.status_code = 600
         return REDIRECT(REPLY.url) 
     ENDIF    
 
-    IF now()-CONFIG.max_clock_skew > REPLY.issue+CONFIG.timeout  THEN
+    IF now()-CONFIG.max_clock_skew-1 > REPLY.issue+CONFIG.timeout  THEN
         STATE.message = "ERROR: reply stale"
         STATE.status_code = 600
         return REDIRECT(REPLY.url) 
