@@ -1,0 +1,324 @@
+Pseudo-code Application Agent
+=============================
+
+Jon Warbrick
+University of Cambridge Computing Service
+Feb 2004 - V1.1
+
+This is a pseudo-code example of how an Application Agent might be
+implemented. This code block should be applied to every HTTP request
+that represents a resource managed by the Application Agent. Because
+the outcome of this processing may be that an HTTP redirect needs to
+be sent, this processing must take place before any other output is
+sent as part of the HTTP response.
+
+This example is not intended for any particular environment, but is
+based on what passes for the logic within my Perl-CGI and Perl-Apache
+agents. It (deliberately) doesn't address how configuration parameters
+get their values and omits a vast amount of housekeeping and checking
+that would be vital in a real agent. It does assume that configuration
+parameters do not change between one request and the next. It also
+uses short, cryptic error messages to stand for what should probably
+be longer messages (for users) and/or log entries with additional
+information (for system administrators). I don't ever want to see a
+deployed agent using the error messages below!
+
+The code uses CONFIG.<whatever> (e.g. CONFIG.max_life) to refer to
+configuration parameters, REQUEST.<whatever> and REPLY.<whatever> to
+refer to fields in *authentication* requests and responses (see
+waa2wls-protocol.txt for details), and STATE.<whatever> to refer to
+data stored in some sort of 'browser session state' storage. This
+latter can most simply be a HTTP Cookie, but could be state stored in
+any other way.
+
+----------------------------------------------------------------------
+
+# PHASE 1: Check if we have valid state stored. If so but the
+# status code in it isn't 200 ('OK') then we report a suitable
+# message - distinguishing between the expected ('user chose to
+# cancel') and the unexpected ('it all fell apart'). We delete the
+# state after displaying an error messages so that a retry for
+# this request may be able to proceed differently. If status is
+# 'OK' but the state information has expired we remember that
+# fact. Otherwise we have authenticated OK.  
+
+IF exists(STATE) and untampered(STATE) THEN
+
+    IF STATE.status_code == 410 THEN
+        tell_user "You cancelled the authentication"
+        delete STATE
+        return FORBIDDEN
+
+    ELSEIF STATE.status_code != 200 THEN
+        tell_user "ERROR: STATE.message"
+        delete STATE
+        return SYSTEM_ERROR
+
+    ELSEIF now() < STATE.issue or now() >= STATE.expire THEN 
+        message = "Your existing session has timed-out"
+
+    ELSE
+        return AUTHENTICATED
+
+    ENDIF
+    
+ENDIF
+    	    
+# We get this far if we had no valid state information or if it had
+# expired.
+    
+# PHASE 2: Look for an authentication reply in the current URL. If
+# we find one then first check that state storage is actually
+# working (because if it isn't then we would loop indefinitely). If
+# that's OK we check the reply.
+    
+# If we can't decode the reply, it's been tampered with or the URL
+# looks bogus then we return SYSTEM_ERROR immediately. But if we can,
+# even if there is something wrong, we stuff the error indication into
+# the state and redirect to the original URL - this is so that the
+# user is left with his original URL in his browser status bar, rather
+# than the original URL with the authentication response attached to
+# it.
+    
+# If the reply checks out we setup state, including issue and
+# expire fields, and then redirect to the original URL. This
+# redirect will subsequently be picked up by Phase 1
+    
+REPLY = get_authreply_from_url
+    
+IF exists(REPLY) THEN
+    
+    IF NOT exists(STATE) THEN
+        tell_user "ERROR: state storage not available"
+        return SYSTEM_ERROR
+    ENDIF
+    
+    IF NOT decode(REPLY) THEN
+        tell_user "ERROR: can't read reply"
+        return SYSTEM_ERROR
+    ENDIF    
+
+    # Check that the URL in the response actually corresponds to the
+    # current URL, ignoring PATH_INFO and QUERY_STRING. If it doesn't
+    # it may not be safe to redirect to this URL
+
+    IF scheme(REPLY.url)  + host(REPLY.url)  + path(REPLY.url)   !=
+       scheme(this_url()) + host(this_url()) + path(this_url()) THEN
+        tell_user "ERROR: URL in response doesn't match current URL"
+        return SYSTEM_ERROR
+    ENDIF    
+ 
+    STATE.id = REPLY.id
+
+    IF REPLY.ver != CONFIG.ver THEN
+        STATE.message = "ERROR: wrong protocol version in reply"
+        STATE.status_code = 600
+        return REDIRECT(REPLY.url)
+    ENDIF        
+
+    # If the response wasn't OK then copy through the code
+
+    IF REPLY.status != 200 THEN
+        STATE.message = "ERROR: authentication failed: REPLY.status"
+        if REPLY.msg THEN
+            STATE.message = STATE.message + REPLY.msg
+        ENDIF
+        STATE.status_code = REPLY.status
+        return REDIRECT(REPLY.url)
+    ENDIF    
+
+    # Check if the reply issue time is believable
+
+    IF REPLY.issue > now()+CONFIG.max_clock_skew or
+          now()-CONFIG.max_clock_skew > REPLY.issue+CONFIG.timeout  THEN
+        STATE.message = "ERROR: reply stale or from the future"
+        STATE.status_code = 600
+        return REDIRECT(REPLY.url) 
+    ENDIF    
+
+    # Check that the type of authentication performed matches what we
+    # will have asked for (see phase 3)
+
+    IF CONFIG.aauth and NOT matches(CONFIG.aauth,REPLY.auth,REPLY.sso)
+        STATE.message = "ERROR: auth types don't match requirement"
+        STATE.status_code = 600
+	return REDIRECT(REPLY.url)
+    ENDIF
+
+    IF CONFIG.iact == 'yes' and REPLY.auth == ''
+        STATE.message = "ERROR: forced interaction request not honoured"
+        STATE.status_code = 600
+	return REDIRECT(REPLY.url)
+    ENDIF
+
+    # Check that the reply had a valid signature (which is only
+    # required for non-error responses)
+    
+    IF NOT REPLY.sig_ok
+        STATE.message = "ERROR: can't reverify signature on response"
+        STATE.status_code = 600
+        return REDIRECT(REPLY.url)
+    ENDIF
+
+    # If we get here the authentication reply is valid
+    
+    STATE.status_code = 200
+    STATE.issue       = REPLY.issue
+    STATE.expire      = now() + min(CONFIG.max_sesion_life,REPLY.life)
+    STATE.id          = REPLY.id
+    STATE.principal   = REPLY.principal
+    STATE.aauth       = REPLY.aauth
+    STATE.sso         = REPLY.sso
+    STATE.params      = REPLY.params 
+    
+    return REDIRECT(REPLY.url) 
+    
+ENDIF # exists(REPLY)
+    
+# We get here only if we had no valid state information (or if it
+# had expired) and there was no authentication reply 
+    
+# PHASE 3: Initialise state so we can test that it's working in
+# phase 2. Then build an authentication request from the
+# information that we have to hand and redirect to the URL that
+# represents that request. We expect that as a result of this we
+# will be called with an authentication reply that can be picked
+# up by phase 2.
+    
+STATE.test = 'testing'
+
+# We need to store non-GET request data (e.g. POST data) in state
+# so that it can subsequently be retrieved by the application. How the
+# retrieval is achieved is left as an exercise for the reader...
+
+if method != 'GET'
+  STATE.request_data = request_data
+ENDIF
+    
+REQUEST.base    = CONFIG.url
+REQUEST.ver     = CONFIG.ver
+REQUEST.url     = this_url()
+REQUEST.desc    = CONFIG.desc  if CONFIG.desc
+REQUEST.aauth   = CONFIG.aauth if CONFIG.aauth
+REQUEST.iact    = CONFIG.iact  if CONFIG.iact
+REQUEST.msg     = $message
+REQUEST.params  = CONFIG.params
+IF CONFIG.max_clock_skew THEN
+   REQUEST.date = now()
+   REQUEST.skew = CONFIG.max_clock_skew
+ENDIF
+REQUEST.fail    = 'yes' if CONFIG.fail
+    
+return REDIRECT(as_url(REQUEST))
+
+# ----
+
+FUNCTION exists(thing)
+
+  # Check if 'thing' (state, reply, etc) exists in some sense
+
+ENDFUNC
+
+
+FUNCTION untampered(state)
+
+  # Check that 'state' has not been tampered with
+
+ENDFUNC
+
+
+FUNCTION tell_user(msg)
+
+  # Pass 'msg' to the browser user and/or record it happened in a log
+
+ENDFUNC
+
+    
+FUNCTION get_authreply_from_url
+
+  # Extract an authentication reply from the current URL
+
+ENDFUNC
+
+
+FUNCTION valid_sig(reply)
+
+  # Test if the RSA signature in an authentication reply is valid
+
+ENDFUNC
+
+
+FUNCTION now
+
+  # Return the current time
+
+ENDFUNC
+
+
+FUNCTION scheme(url)
+
+  # Return the scheme component of 'url'
+
+ENDFUNC
+
+
+FUNCTION host(url)
+
+  # Return the host component of 'url'
+    
+ENDFUNC
+
+
+FUNCTION path(url)
+
+  # Return the path component of 'url'
+    
+ENDFUNC
+
+
+FUNCTION as_url(request)
+
+  # Return the authentication request in 'request' as a URL
+
+ENDFUNC
+
+
+FUNCTION min(a,b)
+
+ # Return the smaller of 'a', 'b'
+
+ENDFUNC
+
+
+FUNCTION this_url
+
+  # Return a URL representing the resource currently being
+  # requested. Note that this is harder than it looks, and that it may
+  # be impossible to return the exact URL that the user
+  # requested. Consistently returning some URL that identifies the
+  # current resource is acceptable
+    
+ENDFUNC     
+    
+    
+FUNCTION matches(rqd_authtype,given_authtype...)
+
+  # Check that the required authentication type 'rqd_authtype' appears
+  # at least once in the sequences of authentication types represented
+  # by the multiple parameters given_authtype...'
+
+ENDFUNC 
+    
+
+FUNCTION decode(reply)
+
+  # Decode the authentication response represented by 'reply'
+
+ENDFUNC    
+    
+    
+FUNCTION sig_ok(reply)
+
+  # Test if the signature included in 'reply' is valid
+
+ENDFUNC    
