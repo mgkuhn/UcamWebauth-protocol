@@ -3,7 +3,7 @@ Pseudo-code Application Agent
 
 Jon Warbrick
 University of Cambridge Computing Service
-Jun 2004 - V1.4
+Dec 2004 - V1.5
 
 This is a pseudo-code example of how an Application Agent might be
 implemented. This block of code should be applied to every HTTP
@@ -34,12 +34,12 @@ STATE can most simply be implemented using an HTTP Cookie, but could
 be stored in any other way. If using a cookie, the cookie could either
 contain the state information directly, or could just contain a
 session-id that indexes a server-side state store. Since cookies can
-be disabled it's vital to check that they are working. if you use
+be disabled it's vital to check that they are working if you use
 them.  The obvious way to do this is to set one when redirecting in
 phase 3 and then to check that it's still there when catching the
 response in phase 2. However note that inappropriate cookie paths
-and/or a mismatch between the hostname used for the initially request
-and the 'official' hostname of the server can frustrate such
+and/or a mismatch between the host name used for the initially request
+and the 'official' host name of the server can frustrate such
 checks. You have been warned.
 
 ----------------------------------------------------------------------
@@ -61,7 +61,8 @@ REPLY = get_authreply_from_url()
 
 IF exists(STATE) THEN
 
-    IF NOT valid(STATE) THEN        tell_user "Invalid, corrupt or forged state"
+    IF NOT valid(STATE) THEN
+        tell_user "Invalid, corrupt or forged state"
         delete STATE
         return SYSTEM_ERROR
         
@@ -75,13 +76,13 @@ IF exists(STATE) THEN
         delete STATE
         return SYSTEM_ERROR
 
-    ELSEIF now() < STATE.issue or now() < STATE.last THEN 
+    ELSEIF now() < STATE.issue OR now() < STATE.last THEN 
         tell_user "ERROR: session start date or last used in the future?"
         delete STATE
         return SYSTEM_ERROR
 
-    ELSEIF now() >= STATE.expire or 
-        now() >= STATE.last+config.inactive_timeout THEN 
+    ELSEIF now() >= STATE.expire OR 
+                now() >= STATE.last+config.inactive_timeout THEN 
         STATE.principal = ""
         message = "Your existing session has timed-out"
 
@@ -368,11 +369,3 @@ FUNCTION valid_sig(reply)
     # currently valid WLS key and is valid
 
 ENDFUNC
-
-
-    
-    
-    
-
-    
-    
