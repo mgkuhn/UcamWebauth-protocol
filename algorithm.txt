@@ -3,7 +3,7 @@ Pseudo-code Application Agent
 
 Jon Warbrick
 University of Cambridge Computing Service
-Feb 2004 - V1.1
+Jun 2004 - V1.2
 
 This is a pseudo-code example of how an Application Agent might be
 implemented. This code block should be applied to every HTTP request
@@ -54,10 +54,17 @@ IF exists(STATE) and untampered(STATE) THEN
         delete STATE
         return SYSTEM_ERROR
 
-    ELSEIF now() < STATE.issue or now() >= STATE.expire THEN 
+    ELSEIF now() < STATE.issue 
+        tell_user "ERROR: session start date in the future?"
+        delete STATE
+        return SYSTEM_ERROR
+
+    ELSEIF now() >= STATE.expire or 
+        now() >= STATE.last+config.inactive_timeout THEN 
         message = "Your existing session has timed-out"
 
     ELSE
+        STATE.last = now()
         return AUTHENTICATED
 
     ENDIF
@@ -129,9 +136,14 @@ IF exists(REPLY) THEN
 
     # Check if the reply issue time is believable
 
-    IF REPLY.issue > now()+CONFIG.max_clock_skew or
-          now()-CONFIG.max_clock_skew > REPLY.issue+CONFIG.timeout  THEN
-        STATE.message = "ERROR: reply stale or from the future"
+    IF REPLY.issue > now()+CONFIG.max_clock_skew THEN
+        STATE.message = "ERROR: reply issued in the future?"
+        STATE.status_code = 600
+        return REDIRECT(REPLY.url) 
+    ENDIF    
+
+    IF now()-CONFIG.max_clock_skew > REPLY.issue+CONFIG.timeout  THEN
+        STATE.message = "ERROR: reply stale"
         STATE.status_code = 600
         return REDIRECT(REPLY.url) 
     ENDIF    
@@ -163,8 +175,9 @@ IF exists(REPLY) THEN
     # If we get here the authentication reply is valid
     
     STATE.status_code = 200
-    STATE.issue       = REPLY.issue
-    STATE.expire      = now() + min(CONFIG.max_sesion_life,REPLY.life)
+    STATE.issue       = now()
+    STATE.last        = now()
+    STATE.life        = min(CONFIG.max_sesion_life,REPLY.life)
     STATE.id          = REPLY.id
     STATE.principal   = REPLY.principal
     STATE.aauth       = REPLY.aauth
@@ -203,10 +216,7 @@ REQUEST.aauth   = CONFIG.aauth if CONFIG.aauth
 REQUEST.iact    = CONFIG.iact  if CONFIG.iact
 REQUEST.msg     = $message
 REQUEST.params  = CONFIG.params
-IF CONFIG.max_clock_skew THEN
-   REQUEST.date = now()
-   REQUEST.skew = CONFIG.max_clock_skew
-ENDIF
+REQUEST.date = now()
 REQUEST.fail    = 'yes' if CONFIG.fail
     
 return REDIRECT(as_url(REQUEST))
@@ -236,7 +246,7 @@ ENDFUNC
     
 FUNCTION get_authreply_from_url
 
-  # Extract an authentication reply from the current URL
+  # Extract and return an authentication reply from the current URL
 
 ENDFUNC
 
@@ -296,7 +306,10 @@ FUNCTION this_url
   # requested. Note that this is harder than it looks, and that it may
   # be impossible to return the exact URL that the user
   # requested. Consistently returning some URL that identifies the
-  # current resource is acceptable
+  # current resource is acceptable. However note that this must not not
+  # depend on any information under the control of the user, such as
+  # the content of a Host: header, since his may allow one AA to proxy
+  # requests to another
     
 ENDFUNC     
     
@@ -312,7 +325,7 @@ ENDFUNC
 
 FUNCTION decode(reply)
 
-  # Decode the authentication response represented by 'reply'
+  # Decode and return the authentication response represented by 'reply'
 
 ENDFUNC    
     
