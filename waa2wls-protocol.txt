@@ -3,7 +3,7 @@ The Cambridge Web Authentication System: WAA->WLS communication protocol
 
 Jon Warbrick
 University of Cambridge Computing Service
-Oct 2004 - V1.6
+Nov 2005 - V2.0
 
 Terminology
 -----------
@@ -107,7 +107,7 @@ service and the following parameters:
   --------- ---------------------------------------------------------------
 
   ver      [REQUIRED] The version of the WLS protocol in use. This document
-           describes version 1 of the protocol.
+           describes versions 1 and 2 of the protocol.
 
   url      [REQUIRED] A fully-qualified http or https URL. On completion of
            the authentication process this URL will be used to compose
@@ -230,7 +230,7 @@ The response fields and their associated values are:
   --------- ---------------------------------------------------------------
 
   ver       [REQUIRED] The version of the WLS protocol in use. This document
-            describes version 1 of the protocol. This will not be 
+            describes versions 1 and 2 of the protocol. This will not be 
             greater than the 'ver' parameter supplied in the request
 
   status    [REQUIRED] A three digit status code indicating the status of
@@ -291,10 +291,17 @@ The response fields and their associated values are:
             '/', and '=' are replaced by '-', '.' and '_' to reduce
             the URL-encoding overhead.
  
-An authentication response message is then formed from the scheme,
-host and path components from the 'url' parameter supplied in the
-request and a single parameter name and value pair in the query
-component.
+An authentication response message is then formed based on the 'url'
+parameter from the request. In version 1 of this protocol the response
+message uses only the scheme, host and path components from the 'url'
+parameter, omitting any query component. In version 2 of the protocol
+the response message uses the entire 'url' parameter complete with any
+query component.
+
+In both protocol versions a single parameter name and value pair is
+appended to the value described in the previous paragraph. and
+seperated from it by '&' if a query component is present and '?'
+otherwise: 
 
   Parameter    Value
   ------------ ------------------------------------------------------------
@@ -360,7 +367,7 @@ the the back and forward buttons in a user's browser.
 In the event of a validation failure the WAA SHOULD report this to the
 user and SHOULD record this in a log file. It MUST NOT automatically
 retry authentication since it is likely that subsequent attempts will
-also fail and this may lead to a redirection loop.1
+also fail and this may lead to a redirection loop.
 
 Subsequent processing
 ---------------------
