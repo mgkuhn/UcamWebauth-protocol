@@ -3,7 +3,7 @@ The Cambridge Web Authentication System: WAA->WLS communication protocol
 
 Jon Warbrick
 University of Cambridge Computing Service
-Nov 2005 - V2.0
+June 2013 - V3.0
 
 Terminology
 -----------
@@ -107,7 +107,7 @@ service and the following parameters:
   --------- ---------------------------------------------------------------
 
   ver      [REQUIRED] The version of the WLS protocol in use. This document
-           describes versions 1 and 2 of the protocol.
+           describes versions 1, 2 and 3 of the protocol.
 
   url      [REQUIRED] A fully-qualified http or https URL. On completion of
            the authentication process this URL will be used to compose
@@ -221,8 +221,10 @@ values of the response fields below, in the order shown, using '!' as
 a separator character. If the characters '!'  or '%' appear in any
 field value they MUST be replaced by their %-encoded representation
 before concatenation. Characters other than '!' and '%' MUST NOT be
-encoded at this stage. Omitted parameters MUST be encoded as the empty
-string.
+encoded at this stage. Parameters with no relevant value MUST be
+encoded as the empty string. Where circumstances require that a
+parameter be omitted then it and any corresponding separator value
+MUST be omitted entirely.
 
 The response fields and their associated values are:
 
@@ -230,7 +232,7 @@ The response fields and their associated values are:
   --------- ---------------------------------------------------------------
 
   ver       [REQUIRED] The version of the WLS protocol in use. This document
-            describes versions 1 and 2 of the protocol. This will not be 
+            describes versions 1, 2 and 3 of the protocol. This will not be 
             greater than the 'ver' parameter supplied in the request
 
   status    [REQUIRED] A three digit status code indicating the status of
@@ -253,6 +255,15 @@ The response fields and their associated values are:
   principal [REQUIRED if status is '200', otherwise required to be
             empty] If present, indicates the authenticated identity of
             the browser user
+
+  ptags     [OPTIONAL in a version 3 response, MUST be entirely
+            omitted otherwise] A potentially empty sequence of text
+            tokens separated by ',' indicating attributes or
+            properties of the identified principal. Possible values of
+            this tag are not standardised and are a matter for local
+            definition by individual WLS operators (see note
+            below). WAA SOULD ignore values that they do not
+            recognise.
 
   auth      [REQUIRED if authentication was successfully established by
             interaction with the user, otherwise required to be empty]
@@ -294,7 +305,7 @@ The response fields and their associated values are:
 An authentication response message is then formed based on the 'url'
 parameter from the request. In version 1 of this protocol the response
 message uses only the scheme, host and path components from the 'url'
-parameter, omitting any query component. In version 2 of the protocol
+parameter, omitting any query component. In versions 2 and 3 of the protocol
 the response message uses the entire 'url' parameter complete with any
 query component.
 
@@ -470,6 +481,26 @@ The currently defined response status codes are:
 
               The WLS declines to provide authentication services on
               this occasion.
+
+Non-normative note
+------------------ 
+
+The WLS operated by the University of Cambridge as part of the Raven
+service asserts the 'ptags' value 'current' for all principals who
+meet some local definition of "Current staff and students of the
+University and its related institutions". When accessed by protocol
+versions less that 3 (when 'ptags' was introduced) the Raven WLS will
+decline to provide positive authentication responses for principals
+not entitled to the 'ptags' value 'current'.
+
+Until Summer 2013 Raven accounts were only available to members of
+this group and it became common to equate the ability to authenticate
+with membership of the group. From Summer 2013 onwards Raven accounts
+became available to others but this behaviour and 'ptags' value allows
+the previous facility to be maintained. Note that, while this grouping
+provides a convenient broad brush distinction between people 'inside'
+the University and people 'outside', it is only loosely defined and
+will and can not be appropriate in all circumstances.
 
 References
 ----------
