@@ -3,7 +3,7 @@ The Cambridge Web Authentication System: WAA->WLS communication protocol
 
 Jon Warbrick
 University of Cambridge Computing Service
-June 2013 - V3.0
+March 2015 - V4.0
 
 Terminology
 -----------
@@ -288,8 +288,10 @@ The response fields and their associated values are:
 
   kid       [REQUIRED if a signature is present] A string which identifies
             the RSA key which will be used to form a signature
-            supplied with the response. Typically these will be small
-            integers. 
+            supplied with the response. A kid MUST be at least one and
+            no more than 8 characters long, MUST contain only the
+            characters '0', '1', '2', '3', '4', '5', '6', '7', '8',
+            and '9', and MUST NOT start with the character '0'.
 
   sig       [REQUIRED if status is 200, OPTIONAL otherwise] A public-key
             signature of the response data constructed from the entire
@@ -340,7 +342,10 @@ following validation checks MUST be completed:
   2) Checking that 'kid', if present, corresponds to a key currently
      being used by the WAA. The login server management will need to
      make the keys currently in use available in a suitably secure
-     manner.
+     manner. If retrieving keys from disk storage based on 'kid',
+     implimentors should be carefull to avoid path traversal
+     vulnerabilities by checking that 'kid' only contains the expected
+     characters. 
 
   3) Checking that the signature, if provided, matches the data
      supplied. To check this, the WAA will need access to the public
