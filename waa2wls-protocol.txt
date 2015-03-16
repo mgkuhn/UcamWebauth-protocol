@@ -3,7 +3,7 @@ The Cambridge Web Authentication System: WAA->WLS communication protocol
 
 Jon Warbrick
 University of Cambridge Computing Service
-March 2015 - V4.0
+March 2015 - V4.1
 
 Terminology
 -----------
@@ -330,6 +330,34 @@ authentication process either by quitting the browser or by manually
 entering a new url, or a fatal processing error may occur within the
 WLS. The WAA MUST NOT rely on receiving a response to every request.
 
+Key management
+--------------
+
+The security of the protocol depends critically on the keys used to
+sign response messages and on their correct management.
+
+Managers of WLSs MUST securely generate and subsequently store
+suitable key pairs. Managers of WAAs MUST securely acquire from the
+managers of any WLS that they trust the list of the keys used by that
+WLS, their corresponding public components, and their kids. WAA
+managers MUST keep this list up-to-date and MUST reject response
+messages signed with other keys. How this happens is outside the scope
+of this document.
+
+WLSs MAY publicise more than one key as 'in use' at any time. Doing so
+supports key rollover by allowing a new key to be distributed and
+installed in WAAs before switching a WLS to use it. WAAs MUST support
+having multiple keys for any one WLS. WAAs SHOULD make the processed
+of authorised addition and removal of particular keys convent for a
+WAA manager.
+
+WAAs may use any appropriate and sufficiently secure mechanism to
+implement a key store. If keys are stored using names based on 'kid'
+(such as file or directory names, database primary keys, etc.) then
+implementers MUST be careful to avoid path traversal vulnerabilities,
+SQL injection attacks, etc. by checking that 'kid' only contains the
+expected characters or by transforming 'kid' appropriately.
+
 Validating the authentication response
 --------------------------------------
 
@@ -340,16 +368,10 @@ following validation checks MUST be completed:
      in the response. 
 
   2) Checking that 'kid', if present, corresponds to a key currently
-     being used by the WAA. The login server management will need to
-     make the keys currently in use available in a suitably secure
-     manner. If retrieving keys from disk storage based on 'kid',
-     implimentors should be carefull to avoid path traversal
-     vulnerabilities by checking that 'kid' only contains the expected
-     characters. 
+     being used by the WAA.
 
   3) Checking that the signature, if provided, matches the data
-     supplied. To check this, the WAA will need access to the public
-     key identified by 'kid'.
+     supplied.
 
   4) Checking that the response is recent by comparing 'issue' with
      the current time. The WLS MUST and the WAA SHOULD have their
