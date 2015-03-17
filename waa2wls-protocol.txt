@@ -2,7 +2,7 @@ The Cambridge Web Authentication System: WAA->WLS communication protocol
 ========================================================================
 
 Jon Warbrick
-University of Cambridge Computing Service
+University of Cambridge Information Services
 March 2015 - V4.1
 
 Terminology
