@@ -334,29 +334,36 @@ Key management
 --------------
 
 The security of the protocol depends critically on the keys used to
-sign response messages and on their correct management.
+sign response messages and on their correct management. The fact that
+a response is signed by an expected key is the only confirmation that
+the response was created by the expected WLS and not by an attacker.
 
-Managers of WLSs MUST securely generate and subsequently store
+Managers of WLSs MUST securely generate and arrange to securely store
 suitable key pairs. Managers of WAAs MUST securely acquire from the
-managers of any WLS that they trust the list of the keys used by that
-WLS, their corresponding public components, and their kids. WAA
-managers MUST keep this list up-to-date and MUST reject response
-messages signed with other keys. How this happens is outside the scope
-of this document.
+managers of a WLS that they wish to trust the list of the keys used by
+that WLS, their corresponding public components, and their kids. WAA
+managers MUST keep this list up-to-date. How this happens is outside
+the scope of this document. WAA managers SHOULD treat with suspicion
+key information obtained from third parties (for example bundled with
+software distributions).
 
-WLSs MAY publicise more than one key as 'in use' at any time. Doing so
-supports key rollover by allowing a new key to be distributed and
-installed in WAAs before switching a WLS to use it. WAAs MUST support
-having multiple keys for any one WLS. WAAs SHOULD make the processed
-of authorised addition and removal of particular keys convent for a
-WAA manager.
+WAAs MUST reject response messages signed with keys not on the
+relevant list.
+
+WLSs MAY publicise more than one key as 'in use' at any time. Amongst
+other things, doing so supports key rollover by allowing a new key to
+be distributed and installed in WAAs before a WLS starts to use
+it. WAAs MUST support having multiple keys for any one WLS. WAAs
+SHOULD make the process of authorised addition and removal of
+particular keys convenient for a WAA manager.
 
 WAAs may use any appropriate and sufficiently secure mechanism to
 implement a key store. If keys are stored using names based on 'kid'
-(such as file or directory names, database primary keys, etc.) then
-implementers MUST be careful to avoid path traversal vulnerabilities,
-SQL injection attacks, etc. by checking that 'kid' only contains the
-expected characters or by transforming 'kid' appropriately.
+(such as file or directory names, database primary keys, external key
+stores, etc.) then implementers MUST be careful to avoid path
+traversal vulnerabilities, SQL injection attacks, etc. by checking
+that 'kid' only contains the expected characters or by transforming
+'kid' appropriately.
 
 Validating the authentication response
 --------------------------------------
