@@ -148,7 +148,7 @@ service and the following parameters:
            previously established identity may be returned if the WLS
            supports doing so, and if not then the user will be prompted
            as necessary.
-  
+
   msg      [OPTIONAL] Text describing why authentication is being requested
            on this occasion which may be displayed to the
            end-user. This could be used, for example, to explain that
@@ -192,7 +192,7 @@ Communication between the browser and the WLS MUST be over SSL and
 therefore the base URL of the WLS MUST have an 'https' scheme. How the
 WAA identifies an appropriate base URL is not specified here. It could
 simply have a static list of one or more URLs, or could retrieve a
-list of currently active WLSs via an auxiliary protocol.  
+list of currently active WLSs via an auxiliary protocol.
 
 Authentication process
 ----------------------
@@ -232,7 +232,7 @@ The response fields and their associated values are:
   --------- ---------------------------------------------------------------
 
   ver       [REQUIRED] The version of the WLS protocol in use. This document
-            describes versions 1, 2 and 3 of the protocol. This will not be 
+            describes versions 1, 2 and 3 of the protocol. This will not be
             greater than the 'ver' parameter supplied in the request
 
   status    [REQUIRED] A three digit status code indicating the status of
@@ -276,7 +276,7 @@ The response fields and their associated values are:
             authentication types were used on these occasions. This
             value consists of a sequence of text tokens as described
             below, separated by ','.
-	   
+
   life      [OPTIONAL] If the user has established an authenticated
             'session' with the WLS, this indicates the remaining life
             (in seconds) of that session. If present, a WAA SHOULD use
@@ -284,7 +284,7 @@ The response fields and their associated values are:
             session that it establishes.
 
   params    [REQUIRED to be a copy of the params parameter from the
-            request]		
+            request]
 
   kid       [REQUIRED if a signature is present] A string which identifies
             the RSA key which will be used to form a signature
@@ -303,7 +303,7 @@ The response fields and their associated values are:
             base64 scheme [RFC 1521] except that the characters '+',
             '/', and '=' are replaced by '-', '.' and '_' to reduce
             the URL-encoding overhead.
- 
+
 An authentication response message is then formed based on the 'url'
 parameter from the request. In version 1 of this protocol the response
 message uses only the scheme, host and path components from the 'url'
@@ -314,7 +314,7 @@ query component.
 In both protocol versions a single parameter name and value pair is
 appended to the value described in the previous paragraph. and
 seperated from it by '&' if a query component is present and '?'
-otherwise: 
+otherwise:
 
   Parameter    Value
   ------------ ------------------------------------------------------------
@@ -372,7 +372,7 @@ The WAA MUST validate any authentication responses that it receives. The
 following validation checks MUST be completed:
 
   1) Checking that an acceptable combination of parameters are present
-     in the response. 
+     in the response.
 
   2) Checking that 'kid', if present, corresponds to a key currently
      being used by the WAA.
@@ -456,7 +456,7 @@ The currently recognised tokens are:
 
   pwd       An authentication using username and password
 
-Tokens starting 'x-' are reserved for experimental use by prior agreement.  
+Tokens starting 'x-' are reserved for experimental use by prior agreement.
 
 Status codes
 ------------
@@ -505,7 +505,7 @@ The currently defined response status codes are:
               The request specified 'iact' as 'no' but either the user
               is not currently identified to the WLS or  the user has
               asked to be notified before responses that identify
-              him/her are issued. 
+              him/her are issued.
 
   560       WAA not authorised
 
@@ -517,7 +517,7 @@ The currently defined response status codes are:
               this occasion.
 
 Non-normative note
------------------- 
+------------------
 
 The WLS operated by the University of Cambridge as part of the Raven
 service asserts the 'ptags' value 'current' for all principals who
@@ -547,7 +547,7 @@ Jacobs, Ed., http://www.w3.org/TR/html4/
 [RFC 1521] MIME Part One: Mechanisms for Specifying and Describing
 the Format of Internet Message Bodies http://www.ietf.org/rfc/rfc1521.txt
 
-[RFC 1945] Hypertext Transfer Protocol -- HTTP/1.0, T. Berners-Lee, 
+[RFC 1945] Hypertext Transfer Protocol -- HTTP/1.0, T. Berners-Lee,
 R. Fielding, UC Irvine, H. Frystyk, http://www.ietf.org/rfc/rfc1945.txt
 
 [RFC 2119] Key words for use in RFCs to Indicate Requirement Levels,
@@ -565,17 +565,9 @@ T. Berners-Lee, http://www.ietf.org/rfc/rfc2616.txt
 C. Newman, http://www.ietf.org/rfc/rfc3339.txt
 
 [RFC 3447] Public-Key Cryptography Standards (PKCS) #1: RSA Cryptography
-Specifications Version 2.1, J. Jonsson, B. Kaliski, 
+Specifications Version 2.1, J. Jonsson, B. Kaliski,
 http://www.ietf.org/rfc/rfc3447.txt
 
 [webiso-model] WebISO: Service model and component capabilities,
 R. Morgan,
 http://middleware.internet2.edu/webiso/docs/draft-internet2-webiso-model-01.html
-
-
-
-
-
-
-
-
